@@ -1,5 +1,12 @@
 local TURBO_MOD_TYPE = 18 -- native mod type for turbo
 
+local PERF_MOD_TYPES = {
+    [11] = true, -- Engine
+    [12] = true, -- Brakes
+    [13] = true, -- Transmission
+    [15] = true, -- Suspension
+}
+
 local lastVehicle = 0
 local warnedForVehicle = false
 
@@ -7,13 +14,17 @@ local function isEmergencyVehicle(veh)
     if not DoesEntityExist(veh) then return false end
 
     local class = GetVehicleClass(veh)
-    if Config.BlockedClasses[class] then
+
+    if Config.UseVehicleClass and Config.BlockedClasses[class] then
+        return true
+    end
+
+    if Config.UseSirenCheck and DoesVehicleHaveSiren(veh) then
         return true
     end
 
     if Config.ExtraModels and next(Config.ExtraModels) ~= nil then
         local model = GetEntityModel(veh)
-        -- Get model name as string (e.g. "POLICE") then lowercase
         local name = string.lower(GetDisplayNameFromVehicleModel(model) or "")
         if Config.ExtraModels[name] then
             return true
@@ -24,33 +35,49 @@ local function isEmergencyVehicle(veh)
 end
 
 local function ensureModKit(veh)
-    -- Some vehicles report -1 until we set kit 0.
+    -- Some vehicles report -1 until we explicitly set kit 0.
     local kit = GetVehicleModKit(veh)
     if kit == -1 then
         SetVehicleModKit(veh, 0)
     end
 end
 
-local function forceNoTurbo(veh)
+local function clearModSlot(veh, slot)
+    local current = GetVehicleMod(veh, slot)
+    if current ~= -1 then
+        SetVehicleMod(veh, slot, -1, false)
+    end
+end
+
+local function forceNoPerformanceMods(veh)
     if not DoesEntityExist(veh) then return end
 
     ensureModKit(veh)
 
-    -- 1) Turn off the toggle turbo flag
-    if IsToggleModOn(veh, TURBO_MOD_TYPE) then
-        ToggleVehicleMod(veh, TURBO_MOD_TYPE, false)
+    -- Turbo is a toggle mod
+    if Config.BlockTurbo then
+        if IsToggleModOn(veh, TURBO_MOD_TYPE) then
+            ToggleVehicleMod(veh, TURBO_MOD_TYPE, false)
+        end
     end
 
-    -- 2) Clear the turbo mod slot (in case menu used SetVehicleMod)
-    local curTurboMod = GetVehicleMod(veh, TURBO_MOD_TYPE)
-    if curTurboMod ~= -1 then
-        SetVehicleMod(veh, TURBO_MOD_TYPE, -1, false)
+    -- Engine and other performance mods
+    if Config.BlockEngine then
+        clearModSlot(veh, 11) -- engine
     end
 
-    -- Debug if needed
-    -- if IsToggleModOn(veh, TURBO_MOD_TYPE) then
-    --     print(("[no_emergency_turbo] Warning: turbo still reported ON for vehicle %s"):format(veh))
-    -- end
+    if Config.BlockOtherPerfMods then
+        for slot, _ in pairs(PERF_MOD_TYPES) do
+            if slot ~= 11 then -- engine already handled above
+                clearModSlot(veh, slot)
+            end
+        end
+    end
+
+    -- Just in case something set power multipliers
+    SetVehicleCheatPowerIncrease(veh, 0.0)
+    SetVehicleEnginePowerMultiplier(veh, 0.0)
+    SetVehicleEngineTorqueMultiplier(veh, 0.0)
 end
 
 CreateThread(function()
@@ -60,16 +87,14 @@ CreateThread(function()
         if IsPedInAnyVehicle(ped, false) then
             local veh = GetVehiclePedIsIn(ped, false)
 
-            -- Only care if player is driving an emergency vehicle
             if GetPedInVehicleSeat(veh, -1) == ped and isEmergencyVehicle(veh) then
-                -- New vehicle? reset warning flag.
                 if veh ~= lastVehicle then
                     lastVehicle = veh
                     warnedForVehicle = false
                 end
 
-                -- Enforce NO turbo constantly
-                forceNoTurbo(veh)
+                -- Enforce NO performance mods constantly while driving emergency vehicle
+                forceNoPerformanceMods(veh)
 
                 if Config.ShowMessage and not warnedForVehicle then
                     TriggerEvent('chat:addMessage', {
@@ -80,8 +105,7 @@ CreateThread(function()
                     warnedForVehicle = true
                 end
 
-                -- While in an emergency vehicle we enforce fairly often
-                Wait(250)
+                Wait(200)
             else
                 lastVehicle = 0
                 warnedForVehicle = false
