@@ -10,11 +10,11 @@ This script does **not** modify vMenu itself; instead it constantly enforces "no
 
 ## Installation
 
-1. Drop the `no_emergency_turbo` folder into your `resources/` directory.
+1. Drop the `TwoPoint_no_turbo` folder into your `resources/` directory.
 2. In your `server.cfg`, make sure it starts *after* vMenu:
    ```cfg
    ensure vMenu
-   ensure no_emergency_turbo
+   ensure TwoPoint_no_turbo
    ```
 
 ---
