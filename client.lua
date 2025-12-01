@@ -10,10 +10,25 @@ local PERF_MOD_TYPES = {
 local lastVehicle = 0
 local warnedForVehicle = false
 
+local function getVehicleName(veh)
+    local model = GetEntityModel(veh)
+    local name = GetDisplayNameFromVehicleModel(model)
+    if not name then return "" end
+    return string.lower(name)
+end
+
 local function isEmergencyVehicle(veh)
     if not DoesEntityExist(veh) then return false end
 
     local class = GetVehicleClass(veh)
+    local name = getVehicleName(veh)
+
+    -- First, respect blacklist: anything in here is never blocked.
+    if Config.BlacklistModels and next(Config.BlacklistModels) ~= nil then
+        if Config.BlacklistModels[name] then
+            return false
+        end
+    end
 
     if Config.UseVehicleClass and Config.BlockedClasses[class] then
         return true
@@ -24,8 +39,6 @@ local function isEmergencyVehicle(veh)
     end
 
     if Config.ExtraModels and next(Config.ExtraModels) ~= nil then
-        local model = GetEntityModel(veh)
-        local name = string.lower(GetDisplayNameFromVehicleModel(model) or "")
         if Config.ExtraModels[name] then
             return true
         end

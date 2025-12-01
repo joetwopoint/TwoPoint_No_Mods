@@ -22,6 +22,13 @@ Config.ExtraModels = {
     -- ['sheriff'] = true,
 }
 
+-- Blacklist: models here will NEVER be blocked, even if they match the rules above.
+-- Use lowercase spawn/display names.
+Config.BlacklistModels = {
+     ['tillertrailer'] = true,
+     ['tiller'] = true,
+}
+
 -- What to block ------------------------------------------------------------
 
 -- Block turbo toggle on emergency vehicles
@@ -31,7 +38,7 @@ Config.BlockTurbo = true
 Config.BlockEngine = true
 
 -- Optionally block other performance mods too (brakes, transmission, suspension)
-Config.BlockOtherPerfMods = true  -- set to true if you want *all* perf mods locked
+Config.BlockOtherPerfMods = false  -- set to true if you want *all* perf mods locked
 
 -- Message settings ---------------------------------------------------------
 
